@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="mindoraGrad" x1="12" y1="12" x2="116" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <filter id="subtleGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#4F46E5" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  
+  <!-- Rounded Squircle Badge -->
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#mindoraGrad)" filter="url(#subtleGlow)"/>
+  
+  <!-- Subtle border highlight -->
+  <rect x="8.5" y="8.5" width="111" height="111" rx="27.5" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+
+  <!-- Mindora "M" Knowledge Monogram -->
+  <path d="M 36 90 V 38 C 36 38 48 54 64 74 C 80 54 92 38 92 38 V 90" 
+        stroke="#FFFFFF" 
+        stroke-width="11" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" />
+  
+  <!-- Knowledge Spark / Focus Accent -->
+  <circle cx="64" cy="34" r="5" fill="#FDE047"/>
+</svg>

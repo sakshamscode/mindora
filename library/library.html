@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mindora — Knowledge Library</title>
+  <link rel="stylesheet" href="../assets/styles/theme.css">
+  <link rel="stylesheet" href="../assets/styles/components.css">
+  <link rel="stylesheet" href="library.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <img src="../assets/icons/mindora-logo.svg" alt="Mindora" class="brand-logo">
+          <div class="brand-info">
+            <span class="brand-title">Mindora</span>
+            <span class="brand-tag">Local Vault</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-scrollable">
+        <!-- Status / Views Navigation -->
+        <nav class="nav-section">
+          <div class="nav-section-title">Views</div>
+          <button class="nav-item active" data-filter-type="status" data-filter-value="all">
+            <span class="nav-item-icon">📚</span>
+            <span class="nav-item-label">All Items</span>
+            <span class="nav-item-count" id="count-all">0</span>
+          </button>
+          <button class="nav-item" data-filter-type="status" data-filter-value="unread">
+            <span class="nav-item-icon">📬</span>
+            <span class="nav-item-label">Unread</span>
+            <span class="nav-item-count" id="count-unread">0</span>
+          </button>
+          <button class="nav-item" data-filter-type="status" data-filter-value="in_progress">
+            <span class="nav-item-icon">⏳</span>
+            <span class="nav-item-label">In Progress</span>
+            <span class="nav-item-count" id="count-in_progress">0</span>
+          </button>
+          <button class="nav-item" data-filter-type="status" data-filter-value="reviewed">
+            <span class="nav-item-icon">✅</span>
+            <span class="nav-item-label">Reviewed</span>
+            <span class="nav-item-count" id="count-reviewed">0</span>
+          </button>
+          <button class="nav-item" data-filter-type="status" data-filter-value="archived">
+            <span class="nav-item-icon">📦</span>
+            <span class="nav-item-label">Archived</span>
+            <span class="nav-item-count" id="count-archived">0</span>
+          </button>
+        </nav>
+
+        <!-- Collections -->
+        <div class="nav-section">
+          <div class="nav-section-header">
+            <span class="nav-section-title">Collections</span>
+            <button id="add-collection-btn" class="btn btn-icon btn-sm" title="Create Collection">+</button>
+          </div>
+          <div id="collections-list" class="nav-list">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Tags Cloud -->
+        <div class="nav-section">
+          <div class="nav-section-title">Tags</div>
+          <div id="tags-cloud" class="tags-cloud">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar Footer (Export & Backup) -->
+      <div class="sidebar-footer">
+        <button id="export-md-btn" class="btn btn-secondary btn-sm footer-btn" title="Export as Markdown notes">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Export .MD
+        </button>
+        <button id="backup-json-btn" class="btn btn-secondary btn-sm footer-btn" title="Download full JSON backup">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          </svg>
+          JSON Backup
+        </button>
+        <button id="import-btn" class="btn btn-subtle btn-sm footer-btn" title="Restore or import from backup">
+          Restore / Import
+        </button>
+        <button id="theme-toggle-btn" class="btn btn-subtle btn-sm theme-btn" title="Switch to Light Mode">
+          ☀️ Light
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+      <!-- Search & Filter Bar -->
+      <div class="top-bar">
+        <div class="search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="search-input" class="search-input" placeholder="Search saved excerpts, takeaways, titles, tags, or domains... (Press / to focus)">
+          <button id="search-clear-btn" class="search-clear-btn" style="display: none;">&times;</button>
+        </div>
+
+        <div class="sort-controls">
+          <label for="sort-select" class="sort-label">Sort:</label>
+          <select id="sort-select" class="select select-sm">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="title">Page Title (A-Z)</option>
+            <option value="domain">Domain</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Active Filter Pill Ribbon -->
+      <div id="filter-ribbon" class="filter-ribbon" style="display: none;">
+        <span class="filter-ribbon-label">Filtered by:</span>
+        <div id="active-filter-chips" class="active-filter-chips"></div>
+        <button id="clear-all-filters-btn" class="btn btn-subtle btn-sm">Clear filters</button>
+      </div>
+
+      <!-- Items Grid / Feed -->
+      <div id="items-grid" class="items-grid">
+        <!-- Rendered cards -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Edit Item Modal -->
+  <div id="edit-modal" class="modal-backdrop">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Saved Item</h3>
+        <button id="edit-modal-close" class="btn-icon">&times;</button>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label" for="edit-excerpt">Excerpt Text</label>
+        <textarea id="edit-excerpt" class="textarea" rows="4"></textarea>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label" for="edit-note">Personal Takeaway / Note</label>
+        <textarea id="edit-note" class="textarea" rows="2" placeholder="Your reflections or why this matters..."></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="input-group flex-1">
+          <label class="input-label" for="edit-collection">Collection</label>
+          <select id="edit-collection" class="select"></select>
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="edit-status">Reading Status</label>
+          <select id="edit-status" class="select">
+            <option value="unread">Unread</option>
+            <option value="in_progress">In Progress</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label" for="edit-tags">Tags (comma separated)</label>
+        <input type="text" id="edit-tags" class="input" placeholder="e.g. react, design, thesis">
+      </div>
+
+      <div class="modal-footer">
+        <button id="edit-modal-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="edit-modal-save" class="btn btn-primary">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import / Restore Modal -->
+  <div id="import-modal" class="modal-backdrop">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Restore or Import Library</h3>
+        <button id="import-modal-close" class="btn-icon">&times;</button>
+      </div>
+
+      <p class="text-secondary" style="font-size: 13px;">
+        Choose a previously exported <code>.json</code> backup file to restore your saved notes and collections.
+      </p>
+
+      <div class="input-group">
+        <label class="input-label">Select Backup File</label>
+        <input type="file" id="import-file-input" accept=".json" class="input">
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Import Mode</label>
+        <select id="import-mode-select" class="select">
+          <option value="merge" selected>Merge with existing items (skips duplicates)</option>
+          <option value="replace">Replace all existing data with backup</option>
+        </select>
+      </div>
+
+      <div id="import-result-msg" style="display: none; font-size: 13px; padding: 10px; border-radius: 6px;"></div>
+
+      <div class="modal-footer">
+        <button id="import-modal-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="import-modal-confirm" class="btn btn-primary" disabled>Start Import</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="library.js"></script>
+</body>
+</html>
