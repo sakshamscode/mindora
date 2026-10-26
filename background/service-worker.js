@@ -97,6 +97,23 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // Handle internal messages
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'SAVE_SELECTION_DIRECT') {
+    const payload = message.payload || {};
+    saveItem({
+      selectedText: payload.selectedText,
+      pageTitle: payload.pageTitle || sender.tab?.title || 'Untitled',
+      sourceUrl: payload.url || sender.tab?.url || '',
+      faviconUrl: payload.favicon || sender.tab?.favIconUrl || ''
+    }).then(saveResult => {
+      const isDuplicate = !!saveResult.duplicate;
+      const itemId = isDuplicate ? saveResult.existingItem.id : saveResult.item.id;
+      sendResponse({ success: true, isDuplicate, itemId });
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
+    });
+    return true;
+  }
+
   if (message.action === 'OPEN_LIBRARY') {
     openLibraryTab();
     sendResponse({ success: true });

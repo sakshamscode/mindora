@@ -149,3 +149,56 @@
 .mindora-toast-input:focus {
   border-color: #6366F1;
 }
+
+/* Floating Selection Quick-Save Button */
+#mindora-floating-save-btn {
+  position: fixed !important;
+  z-index: 2147483646 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  background: linear-gradient(135deg, #111827 0%, #1E1B4B 100%) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(99, 102, 241, 0.5) !important;
+  border-radius: 9999px !important;
+  padding: 6px 14px 6px 11px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.6), 0 0 14px rgba(99, 102, 241, 0.45) !important;
+  transform: translateY(4px) scale(0.96) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.16s ease, transform 0.16s ease, background 0.15s ease, border-color 0.15s ease !important;
+  outline: none !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+}
+
+#mindora-floating-save-btn.visible {
+  opacity: 1 !important;
+  transform: translateY(0) scale(1) !important;
+  pointer-events: auto !important;
+}
+
+#mindora-floating-save-btn:hover {
+  background: linear-gradient(135deg, #1F2937 0%, #312E81 100%) !important;
+  border-color: #818CF8 !important;
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.7), 0 0 20px rgba(99, 102, 241, 0.65) !important;
+  transform: translateY(-1px) scale(1.02) !important;
+}
+
+#mindora-floating-save-btn:active {
+  transform: translateY(0) scale(0.98) !important;
+}
+
+.mindora-floating-icon {
+  color: #818CF8 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}

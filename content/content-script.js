@@ -24,6 +24,180 @@ function getFavicon() {
   return iconLink ? iconLink.href : `${window.location.origin}/favicon.ico`;
 }
 
+// ==========================================
+// Floating Selection Quick-Save Button Logic
+// ==========================================
+
+let isMouseDown = false;
+
+document.addEventListener('mousedown', (e) => {
+  isMouseDown = true;
+  const floatingBtn = document.getElementById('mindora-floating-save-btn');
+  if (floatingBtn && (e.target === floatingBtn || floatingBtn.contains(e.target))) {
+    return; // Don't remove if clicking the button itself
+  }
+  removeFloatingButton();
+});
+
+document.addEventListener('mouseup', (e) => {
+  isMouseDown = false;
+  // If right click, ignore (preserve native context menu)
+  if (e.button && e.button !== 0) return;
+  handleTextSelection(e);
+});
+
+document.addEventListener('keyup', (e) => {
+  // If user used Shift+Arrow keys to select text
+  if (['Shift', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+    handleTextSelection(e);
+  }
+});
+
+window.addEventListener('scroll', () => {
+  removeFloatingButton();
+}, { passive: true });
+
+function handleTextSelection(e) {
+  // Ignore clicks inside our own floating button or toast
+  const floatingBtn = document.getElementById('mindora-floating-save-btn');
+  if (floatingBtn && e && e.target && floatingBtn.contains(e.target)) return;
+
+  const toastRoot = document.getElementById('mindora-toast-root');
+  if (toastRoot && e && e.target && toastRoot.contains(e.target)) return;
+
+  setTimeout(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.rangeCount) {
+      removeFloatingButton();
+      return;
+    }
+
+    const text = selection.toString().trim();
+    if (text.length < 2) {
+      removeFloatingButton();
+      return;
+    }
+
+    // Don't show inside inputs / textareas / contenteditables where user is typing
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+      removeFloatingButton();
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      removeFloatingButton();
+      return;
+    }
+
+    showFloatingButton(rect, text);
+  }, 20);
+}
+
+function showFloatingButton(rect, text) {
+  let btn = document.getElementById('mindora-floating-save-btn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'mindora-floating-save-btn';
+    btn.className = 'mindora-floating-save-btn';
+    btn.innerHTML = `
+      <span class="mindora-floating-icon">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1L10 6L15 8L10 10L8 15L6 10L1 8L6 6L8 1Z" fill="#818CF8"/>
+        </svg>
+      </span>
+      <span>Save to Mindora</span>
+    `;
+    document.body.appendChild(btn);
+
+    // Click handler for floating button
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      const capturedText = btn.dataset.selectedText || text;
+      if (!capturedText) return;
+
+      // Animate to saved state
+      btn.innerHTML = `
+        <span class="mindora-floating-icon">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8.5L6.5 12L13 4" stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span style="color:#34D399;">Saved!</span>
+      `;
+
+      chrome.runtime.sendMessage({
+        action: 'SAVE_SELECTION_DIRECT',
+        payload: {
+          selectedText: capturedText,
+          pageTitle: document.title || 'Untitled Page',
+          url: getBestUrl(),
+          favicon: getFavicon()
+        }
+      }, (response) => {
+        if (response && response.success) {
+          renderToast({
+            selectedText: capturedText,
+            itemId: response.itemId,
+            isDuplicate: response.isDuplicate
+          });
+        }
+        setTimeout(() => removeFloatingButton(), 350);
+      });
+    });
+  } else {
+    // Reset contents if it was previously showing "Saved!"
+    btn.innerHTML = `
+      <span class="mindora-floating-icon">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1L10 6L15 8L10 10L8 15L6 10L1 8L6 6L8 1Z" fill="#818CF8"/>
+        </svg>
+      </span>
+      <span>Save to Mindora</span>
+    `;
+  }
+
+  btn.dataset.selectedText = text;
+
+  // Viewport-relative positioning
+  const btnWidth = 148;
+  const btnHeight = 32;
+
+  let top = rect.top - btnHeight - 8;
+  let left = rect.left + (rect.width / 2) - (btnWidth / 2);
+
+  // If too close to top of viewport, position right below the selection
+  if (top < 10) {
+    top = rect.bottom + 8;
+  }
+
+  // Constrain horizontally within viewport
+  if (left < 10) left = 10;
+  if (left + btnWidth > window.innerWidth - 10) {
+    left = window.innerWidth - btnWidth - 10;
+  }
+
+  btn.style.top = `${Math.round(top)}px`;
+  btn.style.left = `${Math.round(left)}px`;
+  btn.classList.add('visible');
+}
+
+function removeFloatingButton() {
+  const btn = document.getElementById('mindora-floating-save-btn');
+  if (btn) {
+    btn.classList.remove('visible');
+    setTimeout(() => {
+      if (btn && !btn.classList.contains('visible') && btn.parentNode) {
+        btn.parentNode.removeChild(btn);
+      }
+    }, 180);
+  }
+}
+
 // Listen for background requests
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'GET_SELECTION_DATA') {

@@ -10,9 +10,10 @@
 
 ## ✨ Features
 
-- **⚡ One-Click & Shortcut Capture:**
-  - Select text on any webpage and right-click **"Save to Mindora"**, or press <kbd>Alt</kbd>+<kbd>S</kbd>.
-  - Non-intrusive floating toast confirms capture and lets you add quick notes without leaving your reading flow.
+- **⚡ Instant 1-Click Floating Capture & Shortcuts:**
+  - **Floating Quick-Save Button:** Highlight any text with your mouse and a sleek **`✦ Save to Mindora`** pill immediately appears right above your selection. Click it once to save!
+  - **Context Menu & Shortcut:** Right-click **"Save to Mindora"** or press <kbd>Alt</kbd>+<kbd>S</kbd> anytime.
+  - **Instant Feedback:** Non-intrusive floating toast confirms capture and lets you add quick notes without leaving your reading flow.
 - **📝 Notes & Annotations:**
   - Add personal takeaways, insights, or why an excerpt matters directly from the popup or full library.
 - **📂 Collections & Tags:**
