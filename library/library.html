@@ -16,8 +16,8 @@
         <div class="brand">
           <img src="../assets/icons/mindora-logo.svg" alt="Mindora" class="brand-logo">
           <div class="brand-info">
-            <span class="brand-title">Mindora</span>
-            <span class="brand-tag">Local Vault</span>
+            <span class="brand-title" data-i18n="appName">Mindora</span>
+            <span class="brand-tag" data-i18n="appTagline">Local Vault</span>
           </div>
         </div>
       </div>
@@ -25,30 +25,30 @@
       <div class="sidebar-scrollable">
         <!-- Status / Views Navigation -->
         <nav class="nav-section">
-          <div class="nav-section-title">Views</div>
+          <div class="nav-section-title" data-i18n="views">Views</div>
           <button class="nav-item active" data-filter-type="status" data-filter-value="all">
             <span class="nav-item-icon">📚</span>
-            <span class="nav-item-label">All Items</span>
+            <span class="nav-item-label" data-i18n="all_items">All Items</span>
             <span class="nav-item-count" id="count-all">0</span>
           </button>
           <button class="nav-item" data-filter-type="status" data-filter-value="unread">
             <span class="nav-item-icon">📬</span>
-            <span class="nav-item-label">Unread</span>
+            <span class="nav-item-label" data-i18n="unread">Unread</span>
             <span class="nav-item-count" id="count-unread">0</span>
           </button>
           <button class="nav-item" data-filter-type="status" data-filter-value="in_progress">
             <span class="nav-item-icon">⏳</span>
-            <span class="nav-item-label">In Progress</span>
+            <span class="nav-item-label" data-i18n="in_progress">In Progress</span>
             <span class="nav-item-count" id="count-in_progress">0</span>
           </button>
           <button class="nav-item" data-filter-type="status" data-filter-value="reviewed">
             <span class="nav-item-icon">✅</span>
-            <span class="nav-item-label">Reviewed</span>
+            <span class="nav-item-label" data-i18n="reviewed">Reviewed</span>
             <span class="nav-item-count" id="count-reviewed">0</span>
           </button>
           <button class="nav-item" data-filter-type="status" data-filter-value="archived">
             <span class="nav-item-icon">📦</span>
-            <span class="nav-item-label">Archived</span>
+            <span class="nav-item-label" data-i18n="archived">Archived</span>
             <span class="nav-item-count" id="count-archived">0</span>
           </button>
         </nav>
@@ -56,43 +56,62 @@
         <!-- Collections -->
         <div class="nav-section">
           <div class="nav-section-header">
-            <span class="nav-section-title">Collections</span>
-            <button id="add-collection-btn" class="btn btn-icon btn-sm" title="Create Collection">+</button>
+            <span class="nav-section-title" data-i18n="collections">Collections</span>
+            <button id="add-collection-btn" class="btn btn-icon btn-sm" title="Create Collection" data-i18n-title="add_collection">+</button>
           </div>
           <div id="collections-list" class="nav-list">
             <!-- Dynamically populated -->
           </div>
         </div>
 
+        <!-- Languages Filter Cloud -->
+        <div class="nav-section" id="languages-section" style="display: none;">
+          <div class="nav-section-title" data-i18n="language">Languages</div>
+          <div id="languages-cloud" class="tags-cloud">
+            <!-- Populated with detected source languages -->
+          </div>
+        </div>
+
         <!-- Tags Cloud -->
         <div class="nav-section">
-          <div class="nav-section-title">Tags</div>
+          <div class="nav-section-title" data-i18n="tags">Tags</div>
           <div id="tags-cloud" class="tags-cloud">
             <!-- Dynamically populated -->
           </div>
         </div>
       </div>
 
-      <!-- Sidebar Footer (Export & Backup) -->
+      <!-- Sidebar Footer (Language Selector, Export & Backup) -->
       <div class="sidebar-footer">
-        <button id="export-md-btn" class="btn btn-secondary btn-sm footer-btn" title="Export as Markdown notes">
+        <!-- Language Switcher Dropdown -->
+        <div class="language-selector-wrapper">
+          <span class="lang-icon">🌐</span>
+          <select id="library-lang-select" class="select select-sm language-dropdown" title="Change Language">
+            <!-- Populated dynamically from SUPPORTED_LANGUAGES -->
+          </select>
+        </div>
+
+        <button id="export-md-btn" class="btn btn-secondary btn-sm footer-btn" title="Export as Markdown notes" data-i18n-title="export_md">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          Export .MD
+          <span data-i18n="export_md">Export .MD</span>
         </button>
-        <button id="backup-json-btn" class="btn btn-secondary btn-sm footer-btn" title="Download full JSON backup">
+
+        <button id="backup-json-btn" class="btn btn-secondary btn-sm footer-btn" title="Download full JSON backup" data-i18n-title="json_backup">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
             <polyline points="17 21 17 13 7 13 7 21"></polyline>
           </svg>
-          JSON Backup
+          <span data-i18n="json_backup">JSON Backup</span>
         </button>
-        <button id="import-btn" class="btn btn-subtle btn-sm footer-btn" title="Restore or import from backup">
-          Restore / Import
+
+        <button id="import-btn" class="btn btn-subtle btn-sm footer-btn" title="Restore or import from backup" data-i18n-title="restore_import">
+          <span data-i18n="restore_import">Restore / Import</span>
         </button>
+
         <button id="theme-toggle-btn" class="btn btn-subtle btn-sm theme-btn" title="Switch to Light Mode">
           ☀️ Light
         </button>
@@ -108,26 +127,26 @@
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="search-input" class="search-input" placeholder="Search saved excerpts, takeaways, titles, tags, or domains... (Press / to focus)">
+          <input type="text" id="search-input" class="search-input" placeholder="Search saved excerpts, takeaways, titles, tags, or domains... (Press / to focus)" data-i18n-placeholder="search_placeholder">
           <button id="search-clear-btn" class="search-clear-btn" style="display: none;">&times;</button>
         </div>
 
         <div class="sort-controls">
-          <label for="sort-select" class="sort-label">Sort:</label>
+          <label for="sort-select" class="sort-label" data-i18n="sort_by">Sort:</label>
           <select id="sort-select" class="select select-sm">
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="title">Page Title (A-Z)</option>
-            <option value="domain">Domain</option>
+            <option value="newest" data-i18n="newest_first">Newest First</option>
+            <option value="oldest" data-i18n="oldest_first">Oldest First</option>
+            <option value="title" data-i18n="title_az">Page Title (A-Z)</option>
+            <option value="domain" data-i18n="domain_az">Domain</option>
           </select>
         </div>
       </div>
 
       <!-- Active Filter Pill Ribbon -->
       <div id="filter-ribbon" class="filter-ribbon" style="display: none;">
-        <span class="filter-ribbon-label">Filtered by:</span>
+        <span class="filter-ribbon-label" data-i18n="filtered_by">Filtered by:</span>
         <div id="active-filter-chips" class="active-filter-chips"></div>
-        <button id="clear-all-filters-btn" class="btn btn-subtle btn-sm">Clear filters</button>
+        <button id="clear-all-filters-btn" class="btn btn-subtle btn-sm" data-i18n="clear_filters">Clear filters</button>
       </div>
 
       <!-- Items Grid / Feed -->
@@ -141,44 +160,50 @@
   <div id="edit-modal" class="modal-backdrop">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 class="modal-title">Edit Saved Item</h3>
+        <h3 class="modal-title" data-i18n="edit_saved_item">Edit Saved Item</h3>
         <button id="edit-modal-close" class="btn-icon">&times;</button>
       </div>
 
       <div class="input-group">
-        <label class="input-label" for="edit-excerpt">Excerpt Text</label>
-        <textarea id="edit-excerpt" class="textarea" rows="4"></textarea>
+        <label class="input-label" for="edit-excerpt" data-i18n="excerpt_text">Excerpt Text</label>
+        <textarea id="edit-excerpt" class="textarea" rows="3"></textarea>
+      </div>
+
+      <!-- Edit Translated Text if present -->
+      <div class="input-group" id="edit-trans-group" style="display: none;">
+        <label class="input-label" for="edit-translated" data-i18n="show_translated">Translated Excerpt</label>
+        <textarea id="edit-translated" class="textarea" rows="3"></textarea>
       </div>
 
       <div class="input-group">
-        <label class="input-label" for="edit-note">Personal Takeaway / Note</label>
-        <textarea id="edit-note" class="textarea" rows="2" placeholder="Your reflections or why this matters..."></textarea>
+        <label class="input-label" for="edit-note" data-i18n="personal_takeaway">Personal Takeaway / Note</label>
+        <textarea id="edit-note" class="textarea" rows="2" placeholder="Your reflections or why this matters..." data-i18n-placeholder="takeaway_placeholder"></textarea>
       </div>
 
       <div class="form-row">
         <div class="input-group flex-1">
-          <label class="input-label" for="edit-collection">Collection</label>
+          <label class="input-label" for="edit-collection" data-i18n="collection">Collection</label>
           <select id="edit-collection" class="select"></select>
         </div>
         <div class="input-group">
-          <label class="input-label" for="edit-status">Reading Status</label>
+          <label class="input-label" for="edit-status" data-i18n="status">Reading Status</label>
           <select id="edit-status" class="select">
-            <option value="unread">Unread</option>
-            <option value="in_progress">In Progress</option>
-            <option value="reviewed">Reviewed</option>
-            <option value="archived">Archived</option>
+            <option value="unread" data-i18n="unread">Unread</option>
+            <option value="in_progress" data-i18n="in_progress">In Progress</option>
+            <option value="reviewed" data-i18n="reviewed">Reviewed</option>
+            <option value="archived" data-i18n="archived">Archived</option>
           </select>
         </div>
       </div>
 
       <div class="input-group">
-        <label class="input-label" for="edit-tags">Tags (comma separated)</label>
+        <label class="input-label" for="edit-tags" data-i18n="tags">Tags (comma separated)</label>
         <input type="text" id="edit-tags" class="input" placeholder="e.g. react, design, thesis">
       </div>
 
       <div class="modal-footer">
-        <button id="edit-modal-cancel" class="btn btn-secondary">Cancel</button>
-        <button id="edit-modal-save" class="btn btn-primary">Save Changes</button>
+        <button id="edit-modal-cancel" class="btn btn-secondary" data-i18n="cancel">Cancel</button>
+        <button id="edit-modal-save" class="btn btn-primary" data-i18n="save_changes">Save Changes</button>
       </div>
     </div>
   </div>
@@ -187,32 +212,32 @@
   <div id="import-modal" class="modal-backdrop">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 class="modal-title">Restore or Import Library</h3>
+        <h3 class="modal-title" data-i18n="restore_backup_title">Restore or Import Library</h3>
         <button id="import-modal-close" class="btn-icon">&times;</button>
       </div>
 
-      <p class="text-secondary" style="font-size: 13px;">
-        Choose a previously exported <code>.json</code> backup file to restore your saved notes and collections.
+      <p class="text-secondary" style="font-size: 13px;" data-i18n="restore_backup_desc">
+        Choose a previously exported .json backup file to restore your saved notes and collections.
       </p>
 
       <div class="input-group">
-        <label class="input-label">Select Backup File</label>
+        <label class="input-label" data-i18n="select_backup_file">Select Backup File</label>
         <input type="file" id="import-file-input" accept=".json" class="input">
       </div>
 
       <div class="input-group">
-        <label class="input-label">Import Mode</label>
+        <label class="input-label" data-i18n="import_mode">Import Mode</label>
         <select id="import-mode-select" class="select">
-          <option value="merge" selected>Merge with existing items (skips duplicates)</option>
-          <option value="replace">Replace all existing data with backup</option>
+          <option value="merge" selected data-i18n="merge_mode">Merge with existing items (skips duplicates)</option>
+          <option value="replace" data-i18n="replace_mode">Replace all existing data with backup</option>
         </select>
       </div>
 
       <div id="import-result-msg" style="display: none; font-size: 13px; padding: 10px; border-radius: 6px;"></div>
 
       <div class="modal-footer">
-        <button id="import-modal-cancel" class="btn btn-secondary">Cancel</button>
-        <button id="import-modal-confirm" class="btn btn-primary" disabled>Start Import</button>
+        <button id="import-modal-cancel" class="btn btn-secondary" data-i18n="cancel">Cancel</button>
+        <button id="import-modal-confirm" class="btn btn-primary" disabled data-i18n="start_import">Start Import</button>
       </div>
     </div>
   </div>

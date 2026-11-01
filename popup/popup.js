@@ -1,12 +1,19 @@
 /**
  * Mindora Quick Capture Popup Controller
+ * Full multi-language UI support & live excerpt translation
  */
 
 import { getItems, getCollections, saveItem, findDuplicate, createCollection } from '../lib/storage.js';
-import { formatRelativeDate, escapeHtml } from '../lib/utils.js';
+import { formatRelativeDate, escapeHtml, sanitizeUrl } from '../lib/utils.js';
+import { getLanguage, setLanguage, applyTranslations, SUPPORTED_LANGUAGES, t } from '../lib/i18n.js';
+import { translateText } from '../lib/translator.js';
 
 let currentTab = null;
 let currentTags = [];
+let currentLang = 'en';
+let isTranslationActive = false;
+let detectedSourceLang = 'auto';
+let translateDebounceTimer = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await initPopup();
@@ -14,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function initPopup() {
   initTheme();
+  await initLanguage();
   setupEventListeners();
   await loadCollections();
   await detectActiveTabAndSelection();
@@ -25,7 +33,47 @@ function initTheme() {
   document.documentElement.setAttribute('data-theme', savedTheme);
 }
 
+async function initLanguage() {
+  currentLang = await getLanguage();
+
+  // Populate popup header language picker
+  const langSelect = document.getElementById('popup-lang-select');
+  langSelect.innerHTML = '';
+  SUPPORTED_LANGUAGES.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l.code;
+    opt.textContent = `${l.nativeName}`;
+    if (l.code === currentLang) opt.selected = true;
+    langSelect.appendChild(opt);
+  });
+
+  // Populate target language picker in translation panel
+  const targetSelect = document.getElementById('target-lang-select');
+  targetSelect.innerHTML = '';
+  SUPPORTED_LANGUAGES.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l.code;
+    opt.textContent = `${l.nativeName} (${l.name})`;
+    if (l.code === currentLang) opt.selected = true;
+    targetSelect.appendChild(opt);
+  });
+
+  // Apply localized text across all popup elements
+  applyTranslations(document, currentLang);
+}
+
 function setupEventListeners() {
+  // Language switcher in header
+  document.getElementById('popup-lang-select').addEventListener('change', async (e) => {
+    currentLang = await setLanguage(e.target.value);
+    applyTranslations(document, currentLang);
+    // Also update target translation language if not manually changed
+    document.getElementById('target-lang-select').value = currentLang;
+    if (isTranslationActive) {
+      triggerLiveTranslation();
+    }
+  });
+
   // Save button
   document.getElementById('save-btn').addEventListener('click', handleSave);
 
@@ -35,6 +83,30 @@ function setupEventListeners() {
 
   // New collection button
   document.getElementById('new-collection-btn').addEventListener('click', handleNewCollection);
+
+  // Translation Panel Toggle
+  const toggleTransBtn = document.getElementById('toggle-translate-btn');
+  const transPanel = document.getElementById('translation-panel');
+
+  toggleTransBtn.addEventListener('click', () => {
+    isTranslationActive = !isTranslationActive;
+    transPanel.style.display = isTranslationActive ? 'flex' : 'none';
+    toggleTransBtn.classList.toggle('active', isTranslationActive);
+
+    const saveText = document.getElementById('save-btn-text');
+    saveText.textContent = isTranslationActive
+      ? t('save_and_translate', currentLang)
+      : t('save_to_mindora', currentLang);
+
+    if (isTranslationActive) {
+      triggerLiveTranslation();
+    }
+  });
+
+  // Target translation language changed
+  document.getElementById('target-lang-select').addEventListener('change', () => {
+    triggerLiveTranslation();
+  });
 
   // Tag input handling
   const tagInput = document.getElementById('tag-input');
@@ -53,14 +125,46 @@ function setupEventListeners() {
     }
   });
 
-  // Re-check duplicate on manual textarea change
+  // Excerpt input changed
   document.getElementById('excerpt-input').addEventListener('input', async (e) => {
+    const text = e.target.value.trim();
     if (currentTab && currentTab.url) {
-      const text = e.target.value.trim();
       const dup = text ? await findDuplicate(currentTab.url, text) : null;
       toggleDuplicateBanner(!!dup);
     }
+    if (isTranslationActive) {
+      clearTimeout(translateDebounceTimer);
+      translateDebounceTimer = setTimeout(() => triggerLiveTranslation(), 400);
+    }
   });
+}
+
+async function triggerLiveTranslation() {
+  const excerptInput = document.getElementById('excerpt-input');
+  const transOutput = document.getElementById('translated-output');
+  const loader = document.getElementById('trans-loading-indicator');
+  const badge = document.getElementById('detected-lang-badge');
+  const targetLang = document.getElementById('target-lang-select').value;
+
+  const text = excerptInput.value.trim();
+  if (!text) {
+    transOutput.value = '';
+    badge.textContent = 'Auto';
+    return;
+  }
+
+  loader.style.display = 'flex';
+
+  try {
+    const res = await translateText(text, targetLang);
+    transOutput.value = res.translatedText;
+    detectedSourceLang = res.sourceLang || 'auto';
+    badge.textContent = t('detected_lang', currentLang, { lang: detectedSourceLang.toUpperCase() });
+  } catch (err) {
+    console.warn('Live translation error:', err);
+  } finally {
+    loader.style.display = 'none';
+  }
 }
 
 async function detectActiveTabAndSelection() {
@@ -70,7 +174,6 @@ async function detectActiveTabAndSelection() {
 
     currentTab = tabs[0];
 
-    // Try communicating with content script
     try {
       const pageData = await chrome.tabs.sendMessage(currentTab.id, { action: 'GET_SELECTION_DATA' });
       if (pageData && pageData.selectedText) {
@@ -83,9 +186,14 @@ async function detectActiveTabAndSelection() {
         // Check if duplicate
         const dup = await findDuplicate(pageData.url, pageData.selectedText);
         toggleDuplicateBanner(!!dup);
+
+        // If translation is active, translate selection immediately
+        if (isTranslationActive) {
+          triggerLiveTranslation();
+        }
       }
     } catch (e) {
-      // Content script might not be injected yet on internal chrome:// or extension gallery pages
+      // Content script may not be loaded on restricted pages
     }
   } catch (err) {
     console.error('Active tab detection error:', err);
@@ -96,8 +204,7 @@ async function loadCollections(selectedId = null) {
   const collections = await getCollections();
   const select = document.getElementById('collection-select');
 
-  // Retain the default option
-  select.innerHTML = '<option value="">General (No collection)</option>';
+  select.innerHTML = `<option value="">${escapeHtml(t('general_collection', currentLang))}</option>`;
 
   collections.forEach(col => {
     const opt = document.createElement('option');
@@ -114,7 +221,6 @@ function renderTags() {
   const container = document.getElementById('tags-container');
   const tagInput = document.getElementById('tag-input');
 
-  // Remove existing chips
   const existingChips = container.querySelectorAll('.tag-chip');
   existingChips.forEach(chip => chip.remove());
 
@@ -142,7 +248,7 @@ function toggleDuplicateBanner(show) {
 }
 
 async function handleNewCollection() {
-  const name = prompt('Enter new collection name:');
+  const name = prompt(t('prompt_collection_name', currentLang));
   if (!name || !name.trim()) return;
 
   const newCol = await createCollection(name.trim());
@@ -151,10 +257,13 @@ async function handleNewCollection() {
 
 async function handleSave() {
   const saveBtn = document.getElementById('save-btn');
+  const saveText = document.getElementById('save-btn-text');
   const excerptInput = document.getElementById('excerpt-input');
   const noteInput = document.getElementById('note-input');
   const collectionSelect = document.getElementById('collection-select');
   const statusSelect = document.getElementById('status-select');
+  const transOutput = document.getElementById('translated-output');
+  const targetSelect = document.getElementById('target-lang-select');
 
   const excerpt = excerptInput.value.trim();
   if (!excerpt && (!currentTab || !currentTab.title)) {
@@ -163,7 +272,9 @@ async function handleSave() {
   }
 
   saveBtn.disabled = true;
-  saveBtn.textContent = 'Saving...';
+  saveText.textContent = t('saving', currentLang);
+
+  const translatedText = isTranslationActive ? transOutput.value.trim() : '';
 
   try {
     const savePayload = {
@@ -174,10 +285,14 @@ async function handleSave() {
       faviconUrl: currentTab?.favIconUrl || '',
       collectionId: collectionSelect.value || null,
       status: statusSelect.value || 'unread',
-      tags: [...currentTags]
+      tags: [...currentTags],
+      isTranslated: isTranslationActive && !!translatedText,
+      translatedText: translatedText,
+      sourceLanguage: detectedSourceLang,
+      targetLanguage: isTranslationActive ? targetSelect.value : ''
     };
 
-    const res = await saveItem(savePayload, true); // Allow duplicate if user explicitly clicks save
+    await saveItem(savePayload, true);
 
     saveBtn.classList.remove('btn-primary');
     saveBtn.style.background = '#10B981';
@@ -185,7 +300,7 @@ async function handleSave() {
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <polyline points="20 6 9 17 4 12"></polyline>
       </svg>
-      Saved!
+      <span>${escapeHtml(t('saved', currentLang))}</span>
     `;
 
     // Reset inputs
@@ -202,7 +317,7 @@ async function handleSave() {
           <polyline points="17 21 17 13 7 13 7 21"></polyline>
           <polyline points="7 3 7 8 15 8"></polyline>
         </svg>
-        Save to Mindora
+        <span id="save-btn-text">${escapeHtml(isTranslationActive ? t('save_and_translate', currentLang) : t('save_to_mindora', currentLang))}</span>
       `;
     }, 1500);
 
@@ -210,7 +325,7 @@ async function handleSave() {
   } catch (err) {
     console.error('Error saving item:', err);
     saveBtn.disabled = false;
-    saveBtn.textContent = 'Save to Mindora';
+    saveText.textContent = t('save_to_mindora', currentLang);
   }
 }
 
@@ -222,7 +337,7 @@ async function loadRecentItems() {
   countBadge.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`;
 
   if (items.length === 0) {
-    recentList.innerHTML = `<div class="recent-empty">No saved items yet. Select text on any webpage and save!</div>`;
+    recentList.innerHTML = `<div class="recent-empty">${escapeHtml(t('no_recent_items', currentLang))}</div>`;
     return;
   }
 
@@ -232,10 +347,15 @@ async function loadRecentItems() {
   recentItems.forEach(item => {
     const el = document.createElement('div');
     el.className = 'recent-item';
-    const revisitUrl = item.textFragmentUrl || item.sourceUrl;
+    const revisitUrl = sanitizeUrl(item.textFragmentUrl || item.sourceUrl);
+
+    const hasTranslation = item.isTranslated && item.translatedText;
+    const transBadge = hasTranslation
+      ? `<span style="font-size:10px;color:#818CF8;font-weight:600;margin-left:4px;">[🌐 ${escapeHtml((item.targetLanguage || '').toUpperCase())}]</span>`
+      : '';
 
     el.innerHTML = `
-      <div class="recent-item-text">"${escapeHtml(item.selectedText)}"</div>
+      <div class="recent-item-text">"${escapeHtml(hasTranslation ? item.translatedText : item.selectedText)}" ${transBadge}</div>
       <div class="recent-item-meta">
         <a href="${revisitUrl}" target="_blank" class="recent-source-link" title="${escapeHtml(item.pageTitle)}">
           ${escapeHtml(item.sourceDomain || item.pageTitle || 'Source')}

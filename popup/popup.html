@@ -14,15 +14,19 @@
     <header class="popup-header">
       <div class="brand">
         <img src="../assets/icons/mindora-logo.svg" alt="Mindora" class="brand-logo">
-        <span class="brand-title">Mindora</span>
+        <span class="brand-title" data-i18n="appName">Mindora</span>
       </div>
       <div class="header-actions">
-        <button id="open-library-btn" class="btn btn-subtle btn-sm" title="Open Full Library">
+        <!-- Quick Language Switcher -->
+        <select id="popup-lang-select" class="select select-sm lang-picker" title="Switch Language">
+          <!-- Populated from SUPPORTED_LANGUAGES -->
+        </select>
+        <button id="open-library-btn" class="btn btn-subtle btn-sm" title="Open Full Library" data-i18n-title="open_library">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="9" y1="3" x2="9" y2="21"></line>
           </svg>
-          Library
+          <span data-i18n="open_library">Library</span>
         </button>
       </div>
     </header>
@@ -34,31 +38,58 @@
         <line x1="12" y1="8" x2="12" y2="12"></line>
         <line x1="12" y1="16" x2="12.01" y2="16"></line>
       </svg>
-      <span>This excerpt is already saved.</span>
+      <span data-i18n="already_saved_alert">This excerpt is already saved.</span>
     </div>
 
     <!-- Capture Form -->
     <main class="popup-content">
+      <!-- Excerpt Input & Translation Bar -->
       <div class="input-group">
-        <label class="input-label" for="excerpt-input">
-          <span>Excerpt to Capture</span>
-          <span id="selection-status-badge" class="selection-indicator">Selection detected</span>
-        </label>
-        <textarea id="excerpt-input" class="textarea" rows="3" placeholder="Select text on the webpage or paste text here..."></textarea>
+        <div class="input-label-row">
+          <label class="input-label" for="excerpt-input" data-i18n="excerpt_to_capture">Excerpt to Capture</label>
+          <div class="excerpt-controls">
+            <span id="selection-status-badge" class="selection-indicator" data-i18n="selection_detected">Selection detected</span>
+            <button type="button" id="toggle-translate-btn" class="btn-text-action" title="Translate this excerpt">
+              <span class="action-icon">🌐</span>
+              <span id="translate-toggle-label" data-i18n="translate_excerpt">Translate excerpt</span>
+            </button>
+          </div>
+        </div>
+
+        <textarea id="excerpt-input" class="textarea" rows="3" placeholder="Select text on the webpage or paste text here..." data-i18n-placeholder="excerpt_placeholder"></textarea>
+
+        <!-- Dynamic Live Translation Panel (Collapsible) -->
+        <div id="translation-panel" class="translation-panel" style="display: none;">
+          <div class="trans-panel-header">
+            <div class="trans-lang-select-group">
+              <span class="trans-label" data-i18n="target_lang">Target:</span>
+              <select id="target-lang-select" class="select select-sm trans-lang-select">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+            <span id="detected-lang-badge" class="detected-badge">Auto</span>
+          </div>
+          <div class="trans-output-box">
+            <textarea id="translated-output" class="textarea trans-textarea" rows="2" placeholder="Translation will appear here..."></textarea>
+            <div id="trans-loading-indicator" class="trans-loader" style="display: none;">
+              <span class="spinner"></span> <span data-i18n="translating">Translating...</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="input-group">
-        <label class="input-label" for="note-input">Personal Takeaway / Note</label>
-        <input type="text" id="note-input" class="input" placeholder="Why is this important? (optional)">
+        <label class="input-label" for="note-input" data-i18n="personal_takeaway">Personal Takeaway / Note</label>
+        <input type="text" id="note-input" class="input" placeholder="Why is this important? (optional)" data-i18n-placeholder="takeaway_placeholder">
       </div>
 
       <div class="form-row">
         <!-- Collection Selector -->
         <div class="input-group flex-1">
-          <label class="input-label" for="collection-select">Collection</label>
+          <label class="input-label" for="collection-select" data-i18n="collection">Collection</label>
           <div class="collection-select-wrapper">
             <select id="collection-select" class="select">
-              <option value="">General (No collection)</option>
+              <option value="" data-i18n="general_collection">General (No collection)</option>
             </select>
             <button id="new-collection-btn" class="btn btn-icon btn-sm" title="New Collection">+</button>
           </div>
@@ -66,22 +97,21 @@
 
         <!-- Reading Status -->
         <div class="input-group">
-          <label class="input-label" for="status-select">Status</label>
+          <label class="input-label" for="status-select" data-i18n="status">Status</label>
           <select id="status-select" class="select">
-            <option value="unread" selected>Unread</option>
-            <option value="in_progress">In Progress</option>
-            <option value="reviewed">Reviewed</option>
-            <option value="archived">Archived</option>
+            <option value="unread" selected data-i18n="unread">Unread</option>
+            <option value="in_progress" data-i18n="in_progress">In Progress</option>
+            <option value="reviewed" data-i18n="reviewed">Reviewed</option>
+            <option value="archived" data-i18n="archived">Archived</option>
           </select>
         </div>
       </div>
 
       <!-- Tag Input -->
       <div class="input-group">
-        <label class="input-label">Tags</label>
+        <label class="input-label" data-i18n="tags">Tags</label>
         <div class="tags-container" id="tags-container">
-          <!-- Active tag chips appear here -->
-          <input type="text" id="tag-input" class="tag-inline-input" placeholder="Type tag & Enter...">
+          <input type="text" id="tag-input" class="tag-inline-input" placeholder="Type tag & Enter..." data-i18n-placeholder="type_tag_hint">
         </div>
       </div>
 
@@ -92,25 +122,25 @@
           <polyline points="17 21 17 13 7 13 7 21"></polyline>
           <polyline points="7 3 7 8 15 8"></polyline>
         </svg>
-        Save to Mindora
+        <span id="save-btn-text" data-i18n="save_to_mindora">Save to Mindora</span>
       </button>
 
-      <!-- Recent Saves Accordion / Preview -->
+      <!-- Recent Saves Preview -->
       <section class="recent-section">
         <div class="recent-header">
-          <span class="recent-title">Recent Captures</span>
+          <span class="recent-title" data-i18n="recent_captures">Recent Captures</span>
           <span id="recent-count" class="recent-count">0 items</span>
         </div>
         <div id="recent-list" class="recent-list">
-          <div class="recent-empty">No recent items yet. Select text on any webpage and save!</div>
+          <div class="recent-empty" data-i18n="no_recent_items">No recent items yet. Select text on any webpage and save!</div>
         </div>
       </section>
     </main>
 
     <!-- Footer -->
     <footer class="popup-footer">
-      <span class="shortcut-tip"><kbd>Alt</kbd>+<kbd>S</kbd> quick capture selection</span>
-      <button id="footer-library-btn" class="footer-link">Go to Library &rarr;</button>
+      <span class="shortcut-tip"><kbd>Alt</kbd>+<kbd>S</kbd> <span data-i18n="shortcut_hint">quick capture selection</span></span>
+      <button id="footer-library-btn" class="footer-link" data-i18n="go_to_library">Go to Library &rarr;</button>
     </footer>
   </div>
 

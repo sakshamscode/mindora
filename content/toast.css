@@ -8,7 +8,7 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
-/* Toast Card inside Shadow Root */
+/* Toast Card inside Shadow Root / Root */
 .mindora-toast-card {
   pointer-events: auto;
   background: #111827;
@@ -17,7 +17,7 @@
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(99, 102, 241, 0.35);
   border-radius: 12px;
   padding: 14px 16px;
-  width: 320px;
+  width: 340px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -58,10 +58,18 @@
   color: #818CF8;
 }
 
-.mindora-toast-icon {
-  width: 18px;
-  height: 18px;
+.mindora-toast-trans-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.2);
+  color: #C7D2FE;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  padding: 1px 6px;
   border-radius: 4px;
+  text-transform: uppercase;
 }
 
 .mindora-toast-close {
@@ -78,6 +86,12 @@
   color: #FFFFFF;
 }
 
+.mindora-toast-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .mindora-toast-excerpt {
   color: #E5E7EB;
   font-size: 12px;
@@ -86,9 +100,33 @@
   padding-left: 8px;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   font-style: italic;
+  word-break: break-word;
+}
+
+.mindora-toast-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mindora-toast-tab-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #9CA3AF;
+  font-size: 10.5px;
+  font-weight: 500;
+  border-radius: 4px;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+
+.mindora-toast-tab-btn.active {
+  background: #4F46E5;
+  color: #FFFFFF;
+  border-color: #6366F1;
 }
 
 .mindora-toast-actions {
@@ -150,49 +188,73 @@
   border-color: #6366F1;
 }
 
-/* Floating Selection Quick-Save Button */
-#mindora-floating-save-btn {
+/* Floating Selection Unified Pill Container */
+#mindora-floating-group {
   position: fixed !important;
   z-index: 2147483646 !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 7px !important;
   background: linear-gradient(135deg, #111827 0%, #1E1B4B 100%) !important;
-  color: #FFFFFF !important;
   border: 1px solid rgba(99, 102, 241, 0.5) !important;
   border-radius: 9999px !important;
-  padding: 6px 14px 6px 11px !important;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-  font-size: 12.5px !important;
-  font-weight: 600 !important;
-  cursor: pointer !important;
-  user-select: none !important;
+  padding: 3px !important;
   box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.6), 0 0 14px rgba(99, 102, 241, 0.45) !important;
   transform: translateY(4px) scale(0.96) !important;
   opacity: 0 !important;
   pointer-events: none !important;
-  transition: opacity 0.16s ease, transform 0.16s ease, background 0.15s ease, border-color 0.15s ease !important;
+  transition: opacity 0.16s ease, transform 0.16s ease !important;
   outline: none !important;
   white-space: nowrap !important;
-  line-height: 1 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   box-sizing: border-box !important;
 }
 
-#mindora-floating-save-btn.visible {
+#mindora-floating-group.visible {
   opacity: 1 !important;
   transform: translateY(0) scale(1) !important;
   pointer-events: auto !important;
 }
 
-#mindora-floating-save-btn:hover {
-  background: linear-gradient(135deg, #1F2937 0%, #312E81 100%) !important;
-  border-color: #818CF8 !important;
-  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.7), 0 0 20px rgba(99, 102, 241, 0.65) !important;
-  transform: translateY(-1px) scale(1.02) !important;
+.mindora-floating-action-btn {
+  background: transparent !important;
+  border: none !important;
+  color: #FFFFFF !important;
+  padding: 5px 11px !important;
+  border-radius: 9999px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  transition: all 0.15s ease !important;
+  line-height: 1 !important;
 }
 
-#mindora-floating-save-btn:active {
-  transform: translateY(0) scale(0.98) !important;
+.mindora-floating-action-btn:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #FFFFFF !important;
+}
+
+.mindora-floating-action-btn:active {
+  transform: scale(0.96) !important;
+}
+
+.mindora-floating-action-btn.secondary {
+  color: #C7D2FE !important;
+  padding: 5px 9px !important;
+}
+
+.mindora-floating-action-btn.secondary:hover {
+  background: rgba(99, 102, 241, 0.25) !important;
+  color: #FFFFFF !important;
+}
+
+.mindora-floating-divider {
+  width: 1px !important;
+  height: 14px !important;
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  margin: 0 1px !important;
 }
 
 .mindora-floating-icon {
@@ -200,5 +262,4 @@
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  flex-shrink: 0 !important;
 }

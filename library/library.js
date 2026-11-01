@@ -1,5 +1,6 @@
 /**
  * Mindora Library Workspace Controller
+ * Dynamic multi-language UI localization and dual-language excerpt management
  */
 
 import {
@@ -10,6 +11,7 @@ import {
   updateItem,
   deleteItem,
   getAllTags,
+  getSavedLanguages,
   getLibraryStats
 } from '../lib/storage.js';
 
@@ -19,18 +21,43 @@ import {
   importFromJSON
 } from '../lib/export.js';
 
-import { formatRelativeDate, escapeHtml } from '../lib/utils.js';
+import {
+  getLanguage,
+  setLanguage,
+  applyTranslations,
+  SUPPORTED_LANGUAGES,
+  t
+} from '../lib/i18n.js';
+
+import {
+  translateText,
+  getLanguageName
+} from '../lib/translator.js';
+
+import {
+  formatRelativeDate,
+  escapeHtml,
+  sanitizeUrl,
+  sanitizeColor,
+  sanitizeId,
+  sanitizeFaviconUrl,
+  safeHighlightHtml
+} from '../lib/utils.js';
 
 // Application State
 const state = {
   items: [],
   collections: [],
   tags: [],
+  languages: [],
   stats: {},
+  currentLang: 'en',
+  itemViews: {}, // map of itemId -> 'original' | 'translated'
   filters: {
     status: 'all',
     collectionId: null,
     tag: null,
+    language: null,
     searchQuery: '',
     sortBy: 'newest'
   },
@@ -39,6 +66,7 @@ const state = {
 
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
+  await initLanguage();
   setupEventListeners();
   await refreshData();
 });
@@ -63,9 +91,36 @@ function toggleTheme() {
   updateThemeButtonText(next);
 }
 
+async function initLanguage() {
+  state.currentLang = await getLanguage();
+
+  const langSelect = document.getElementById('library-lang-select');
+  langSelect.innerHTML = '';
+  SUPPORTED_LANGUAGES.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l.code;
+    opt.textContent = `${l.nativeName} (${l.name})`;
+    if (l.code === state.currentLang) opt.selected = true;
+    langSelect.appendChild(opt);
+  });
+
+  applyTranslations(document, state.currentLang);
+}
+
 function setupEventListeners() {
   // Theme toggle
   document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+
+  // Language switcher in sidebar
+  document.getElementById('library-lang-select').addEventListener('change', async (e) => {
+    state.currentLang = await setLanguage(e.target.value);
+    applyTranslations(document, state.currentLang);
+    renderCollections();
+    renderTagsCloud();
+    renderLanguagesCloud();
+    updateFilterRibbon();
+    renderItems();
+  });
 
   // Search input & keyboard shortcut '/'
   const searchInput = document.getElementById('search-input');
@@ -111,7 +166,7 @@ function setupEventListeners() {
 
   // Add Collection
   document.getElementById('add-collection-btn').addEventListener('click', async () => {
-    const name = prompt('Enter collection name:');
+    const name = prompt(t('prompt_collection_name', state.currentLang));
     if (!name || !name.trim()) return;
 
     const colors = ['#6366F1', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6', '#0EA5E9'];
@@ -150,6 +205,7 @@ function resetFilters() {
   state.filters.status = 'all';
   state.filters.collectionId = null;
   state.filters.tag = null;
+  state.filters.language = null;
   state.filters.searchQuery = '';
   document.getElementById('search-input').value = '';
   document.getElementById('search-clear-btn').style.display = 'none';
@@ -162,21 +218,24 @@ function resetFilters() {
 }
 
 async function refreshData() {
-  const [items, collections, tags, stats] = await Promise.all([
+  const [items, collections, tags, languages, stats] = await Promise.all([
     getItems(),
     getCollections(),
     getAllTags(),
+    getSavedLanguages(),
     getLibraryStats()
   ]);
 
   state.items = items;
   state.collections = collections;
   state.tags = tags;
+  state.languages = languages;
   state.stats = stats;
 
   updateSidebarCounters();
   renderCollections();
   renderTagsCloud();
+  renderLanguagesCloud();
   updateFilterRibbon();
   renderItems();
 }
@@ -201,8 +260,8 @@ function renderCollections() {
     const isActive = state.filters.collectionId === col.id;
 
     itemEl.innerHTML = `
-      <button class="nav-item ${isActive ? 'active' : ''}" data-col-id="${col.id}">
-        <span class="color-dot" style="background-color: ${col.color || '#6366F1'};"></span>
+      <button class="nav-item ${isActive ? 'active' : ''}" data-col-id="${escapeHtml(col.id)}">
+        <span class="color-dot" style="background-color: ${sanitizeColor(col.color)};"></span>
         <span class="nav-item-label">${escapeHtml(col.name)}</span>
         <span class="nav-item-count">${itemCount}</span>
       </button>
@@ -211,11 +270,7 @@ function renderCollections() {
 
     // Click to filter by collection
     itemEl.querySelector('.nav-item').addEventListener('click', () => {
-      if (state.filters.collectionId === col.id) {
-        state.filters.collectionId = null;
-      } else {
-        state.filters.collectionId = col.id;
-      }
+      state.filters.collectionId = state.filters.collectionId === col.id ? null : col.id;
       renderCollections();
       updateFilterRibbon();
       renderItems();
@@ -224,7 +279,8 @@ function renderCollections() {
     // Delete collection
     itemEl.querySelector('.collection-delete-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (confirm(`Delete collection "${col.name}"? Saved items will be kept and moved to General.`)) {
+      const msg = t('confirm_delete_col', state.currentLang, { name: col.name });
+      if (confirm(msg)) {
         await deleteCollection(col.id);
         if (state.filters.collectionId === col.id) {
           state.filters.collectionId = null;
@@ -242,7 +298,7 @@ function renderTagsCloud() {
   container.innerHTML = '';
 
   if (state.tags.length === 0) {
-    container.innerHTML = '<span style="font-size:11px;color:var(--text-muted);padding-left:8px;">No tags yet</span>';
+    container.innerHTML = `<span style="font-size:11px;color:var(--text-muted);padding-left:8px;">${escapeHtml(t('no_tags_yet', state.currentLang))}</span>`;
     return;
   }
 
@@ -265,6 +321,37 @@ function renderTagsCloud() {
   });
 }
 
+function renderLanguagesCloud() {
+  const section = document.getElementById('languages-section');
+  const container = document.getElementById('languages-cloud');
+  container.innerHTML = '';
+
+  if (state.languages.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'flex';
+
+  state.languages.forEach(langCode => {
+    const count = state.items.filter(i => i.sourceLanguage && i.sourceLanguage.toLowerCase() === langCode).length;
+    const chip = document.createElement('span');
+    const isActive = state.filters.language === langCode;
+    chip.className = `tag-chip ${isActive ? 'active' : ''}`;
+    chip.style.cursor = 'pointer';
+    chip.innerHTML = `🌐 ${escapeHtml(langCode.toUpperCase())} <span style="opacity:0.6;font-size:10px;">(${count})</span>`;
+
+    chip.addEventListener('click', () => {
+      state.filters.language = state.filters.language === langCode ? null : langCode;
+      renderLanguagesCloud();
+      updateFilterRibbon();
+      renderItems();
+    });
+
+    container.appendChild(chip);
+  });
+}
+
 function updateFilterRibbon() {
   const ribbon = document.getElementById('filter-ribbon');
   const chipsContainer = document.getElementById('active-filter-chips');
@@ -274,7 +361,7 @@ function updateFilterRibbon() {
 
   if (state.filters.status !== 'all') {
     activeFilters.push({
-      label: `Status: ${state.filters.status.replace('_', ' ')}`,
+      label: `${t('status', state.currentLang)}: ${t(state.filters.status, state.currentLang)}`,
       clear: () => {
         state.filters.status = 'all';
         document.querySelectorAll('.nav-item[data-filter-type="status"]').forEach(b => b.classList.remove('active'));
@@ -286,7 +373,7 @@ function updateFilterRibbon() {
   if (state.filters.collectionId) {
     const col = state.collections.find(c => c.id === state.filters.collectionId);
     activeFilters.push({
-      label: `Collection: ${col ? col.name : 'Unknown'}`,
+      label: `${t('collection', state.currentLang)}: ${col ? col.name : 'Unknown'}`,
       clear: () => {
         state.filters.collectionId = null;
         renderCollections();
@@ -296,10 +383,20 @@ function updateFilterRibbon() {
 
   if (state.filters.tag) {
     activeFilters.push({
-      label: `Tag: #${state.filters.tag}`,
+      label: `${t('tags', state.currentLang)}: #${state.filters.tag}`,
       clear: () => {
         state.filters.tag = null;
         renderTagsCloud();
+      }
+    });
+  }
+
+  if (state.filters.language) {
+    activeFilters.push({
+      label: `${t('language', state.currentLang)}: ${state.filters.language.toUpperCase()}`,
+      clear: () => {
+        state.filters.language = null;
+        renderLanguagesCloud();
       }
     });
   }
@@ -344,24 +441,29 @@ function getFilteredAndSortedItems() {
     list = list.filter(item => item.tags && item.tags.includes(state.filters.tag));
   }
 
-  // 4. Client-side Search Query Filter
+  // 4. Source Language Filter
+  if (state.filters.language) {
+    list = list.filter(item => item.sourceLanguage && item.sourceLanguage.toLowerCase() === state.filters.language);
+  }
+
+  // 5. Multi-Language Real-Time Search Query Filter
   if (state.filters.searchQuery) {
     const tokens = state.filters.searchQuery.split(/\s+/).filter(Boolean);
     list = list.filter(item => {
       const haystack = [
         item.selectedText,
+        item.translatedText || '',
         item.userNote,
         item.pageTitle,
         item.sourceDomain,
         ...(item.tags || [])
       ].join(' ').toLowerCase();
 
-      // All tokens must match
       return tokens.every(token => haystack.includes(token));
     });
   }
 
-  // 5. Sorting
+  // 6. Sorting
   switch (state.filters.sortBy) {
     case 'oldest':
       list.sort((a, b) => a.createdAt - b.createdAt);
@@ -391,11 +493,11 @@ function renderItems() {
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
         <div class="empty-state-icon">🔍</div>
-        <div class="empty-state-title">No items found</div>
+        <div class="empty-state-title">${escapeHtml(t('empty_vault_title', state.currentLang))}</div>
         <div class="empty-state-desc">
           ${state.items.length === 0 
-            ? 'Your Mindora vault is empty. Select text on any webpage and press Alt+S to save your first excerpt!' 
-            : 'No saved excerpts match your current filters or search term.'}
+            ? escapeHtml(t('empty_vault_desc', state.currentLang)) 
+            : escapeHtml(t('empty_filter_desc', state.currentLang))}
         </div>
       </div>
     `;
@@ -412,7 +514,7 @@ function renderItems() {
     const col = item.collectionId ? collectionsMap[item.collectionId] : null;
     const colBadgeHtml = col 
       ? `<span class="collection-pill" style="font-size:11px;padding:2px 8px;">
-           <span class="color-dot" style="background-color:${col.color}"></span>
+           <span class="color-dot" style="background-color:${sanitizeColor(col.color)}"></span>
            ${escapeHtml(col.name)}
          </span>`
       : '';
@@ -424,38 +526,64 @@ function renderItems() {
       : '';
 
     const noteHtml = item.userNote
-      ? `<div class="item-note"><strong>Takeaway:</strong> ${highlightText(escapeHtml(item.userNote), state.filters.searchQuery)}</div>`
+      ? `<div class="item-note"><strong>${escapeHtml(t('takeaway', state.currentLang))}:</strong> ${safeHighlightHtml(item.userNote, state.filters.searchQuery)}</div>`
       : '';
 
-    const highlightedExcerpt = highlightText(escapeHtml(item.selectedText), state.filters.searchQuery);
-    const highlightedTitle = highlightText(escapeHtml(item.pageTitle || 'Untitled'), state.filters.searchQuery);
+    // Translation Tab Controls on Card
+    const hasTranslation = !!(item.isTranslated && item.translatedText);
+    const activeView = state.itemViews[item.id] || (hasTranslation ? 'translated' : 'original');
 
-    const revisitUrl = item.textFragmentUrl || item.sourceUrl;
+    let transTabsHtml = '';
+    if (hasTranslation) {
+      transTabsHtml = `
+        <div class="card-trans-tabs">
+          <button class="card-tab-btn ${activeView === 'translated' ? 'active' : ''}" data-view="translated">
+            🌐 ${escapeHtml(t('show_translated', state.currentLang))} (${item.targetLanguage ? escapeHtml(item.targetLanguage.toUpperCase()) : 'EN'})
+          </button>
+          <button class="card-tab-btn ${activeView === 'original' ? 'active' : ''}" data-view="original">
+            📄 ${escapeHtml(t('show_original', state.currentLang))} ${item.sourceLanguage ? `(${escapeHtml(item.sourceLanguage.toUpperCase())})` : ''}
+          </button>
+        </div>
+      `;
+    }
+
+    const currentTextToShow = (hasTranslation && activeView === 'translated')
+      ? item.translatedText
+      : item.selectedText;
+
+    const highlightedExcerpt = safeHighlightHtml(currentTextToShow, state.filters.searchQuery);
+    const highlightedTitle = safeHighlightHtml(item.pageTitle || 'Untitled', state.filters.searchQuery);
+
+    const safeRevisitUrl = sanitizeUrl(item.textFragmentUrl || item.sourceUrl);
+    const safeSourceUrl = sanitizeUrl(item.sourceUrl);
+    const safeFavicon = sanitizeFaviconUrl(item.faviconUrl);
 
     card.innerHTML = `
       <div class="card-header">
         <div class="card-source-badge">
-          ${item.faviconUrl ? `<img src="${item.faviconUrl}" class="card-favicon" onerror="this.style.display='none'">` : ''}
-          <a href="${item.sourceUrl}" target="_blank" class="item-source-link" title="${escapeHtml(item.sourceUrl)}">
+          ${safeFavicon ? `<img src="${safeFavicon}" class="card-favicon" alt="">` : ''}
+          <a href="${safeSourceUrl}" target="_blank" class="item-source-link" title="${escapeHtml(item.sourceUrl)}">
             ${escapeHtml(item.sourceDomain || 'Web')}
           </a>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           ${colBadgeHtml}
-          <select class="select select-sm card-status-select" data-item-id="${item.id}" style="padding:2px 6px;font-size:11px;">
-            <option value="unread" ${item.status === 'unread' ? 'selected' : ''}>Unread</option>
-            <option value="in_progress" ${item.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
-            <option value="reviewed" ${item.status === 'reviewed' ? 'selected' : ''}>Reviewed</option>
-            <option value="archived" ${item.status === 'archived' ? 'selected' : ''}>Archived</option>
+          <select class="select select-sm card-status-select" data-item-id="${escapeHtml(item.id)}" style="padding:2px 6px;font-size:11px;">
+            <option value="unread" ${item.status === 'unread' ? 'selected' : ''}>${escapeHtml(t('unread', state.currentLang))}</option>
+            <option value="in_progress" ${item.status === 'in_progress' ? 'selected' : ''}>${escapeHtml(t('in_progress', state.currentLang))}</option>
+            <option value="reviewed" ${item.status === 'reviewed' ? 'selected' : ''}>${escapeHtml(t('reviewed', state.currentLang))}</option>
+            <option value="archived" ${item.status === 'archived' ? 'selected' : ''}>${escapeHtml(t('archived', state.currentLang))}</option>
           </select>
         </div>
       </div>
 
       <div class="card-title">
-        <a href="${revisitUrl}" target="_blank" title="Open source page">${highlightedTitle}</a>
+        <a href="${safeRevisitUrl}" target="_blank" title="${escapeHtml(t('revisit_on_page', state.currentLang))}">${highlightedTitle}</a>
       </div>
 
-      <div class="item-excerpt">
+      ${transTabsHtml}
+
+      <div class="item-excerpt card-excerpt-text">
         "${highlightedExcerpt}"
       </div>
 
@@ -463,23 +591,28 @@ function renderItems() {
       ${tagsHtml}
 
       <div class="item-footer">
-        <span>Captured ${formatRelativeDate(item.createdAt)}</span>
+        <span>${formatRelativeDate(item.createdAt)}</span>
         <div class="card-actions">
-          <a href="${revisitUrl}" target="_blank" class="revisit-btn" title="Revisit on page with highlighted quote">
+          ${!hasTranslation ? `
+            <button class="card-translate-action" title="Translate excerpt to ${state.currentLang.toUpperCase()}">
+              🌐 ${escapeHtml(t('translate', state.currentLang))}
+            </button>
+          ` : ''}
+          <a href="${safeRevisitUrl}" target="_blank" class="revisit-btn" title="${escapeHtml(t('revisit_on_page', state.currentLang))}">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
               <polyline points="15 3 21 3 21 9"></polyline>
               <line x1="10" y1="14" x2="21" y2="3"></line>
             </svg>
-            Revisit
+            ${escapeHtml(t('revisit', state.currentLang))}
           </a>
-          <button class="btn btn-icon btn-sm edit-btn" data-item-id="${item.id}" title="Edit item">
+          <button class="btn btn-icon btn-sm edit-btn" data-item-id="${escapeHtml(item.id)}" title="${escapeHtml(t('edit_item', state.currentLang))}">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
             </svg>
           </button>
-          <button class="btn btn-icon btn-sm delete-btn" data-item-id="${item.id}" title="Delete item">
+          <button class="btn btn-icon btn-sm delete-btn" data-item-id="${escapeHtml(item.id)}" title="${escapeHtml(t('delete_item', state.currentLang))}">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6"></polyline>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -488,6 +621,51 @@ function renderItems() {
         </div>
       </div>
     `;
+
+    // Handle broken favicon image without inline CSP violation
+    const faviconImg = card.querySelector('.card-favicon');
+    if (faviconImg) {
+      faviconImg.addEventListener('error', () => {
+        faviconImg.style.display = 'none';
+      });
+    }
+
+    // Dual-Language Tabs Event
+    if (hasTranslation) {
+      card.querySelectorAll('.card-tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const targetView = btn.dataset.view;
+          state.itemViews[item.id] = targetView;
+          renderItems();
+        });
+      });
+    }
+
+    // On-the-fly Card Translate Button
+    const cardTransBtn = card.querySelector('.card-translate-action');
+    if (cardTransBtn) {
+      cardTransBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        cardTransBtn.textContent = 'Translating...';
+        cardTransBtn.disabled = true;
+
+        try {
+          const trans = await translateText(item.selectedText, state.currentLang);
+          await updateItem(item.id, {
+            isTranslated: true,
+            translatedText: trans.translatedText,
+            sourceLanguage: trans.sourceLang,
+            targetLanguage: trans.targetLang
+          });
+          state.itemViews[item.id] = 'translated';
+          await refreshData();
+        } catch (err) {
+          alert('Translation error: ' + err.message);
+          cardTransBtn.disabled = false;
+        }
+      });
+    }
 
     // Handle Quick Status Change
     card.querySelector('.card-status-select').addEventListener('change', async (e) => {
@@ -503,7 +681,7 @@ function renderItems() {
 
     // Handle Delete Click
     card.querySelector('.delete-btn').addEventListener('click', async () => {
-      if (confirm('Are you sure you want to delete this saved excerpt?')) {
+      if (confirm(t('confirm_delete_item', state.currentLang))) {
         await deleteItem(item.id);
         await refreshData();
       }
@@ -514,14 +692,7 @@ function renderItems() {
 }
 
 function highlightText(text, query) {
-  if (!query) return text;
-  const tokens = query.split(/\s+/).filter(Boolean);
-  if (tokens.length === 0) return text;
-
-  // Escape tokens for regex
-  const pattern = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-  const regex = new RegExp(`(${pattern})`, 'gi');
-  return text.replace(regex, '<mark class="search-highlight">$1</mark>');
+  return safeHighlightHtml(text, query);
 }
 
 /* Edit Modal Logic */
@@ -543,6 +714,7 @@ function setupEditModal() {
     if (!state.editingItemId) return;
 
     const excerpt = document.getElementById('edit-excerpt').value.trim();
+    const transText = document.getElementById('edit-translated').value.trim();
     const note = document.getElementById('edit-note').value.trim();
     const collectionId = document.getElementById('edit-collection').value || null;
     const status = document.getElementById('edit-status').value;
@@ -551,6 +723,8 @@ function setupEditModal() {
 
     await updateItem(state.editingItemId, {
       selectedText: excerpt,
+      translatedText: transText,
+      isTranslated: !!transText,
       userNote: note,
       collectionId: collectionId,
       status: status,
@@ -571,9 +745,19 @@ function openEditModal(item) {
   document.getElementById('edit-status').value = item.status || 'unread';
   document.getElementById('edit-tags').value = (item.tags || []).join(', ');
 
+  const transGroup = document.getElementById('edit-trans-group');
+  const transInput = document.getElementById('edit-translated');
+  if (item.isTranslated || item.translatedText) {
+    transGroup.style.display = 'flex';
+    transInput.value = item.translatedText || '';
+  } else {
+    transGroup.style.display = 'none';
+    transInput.value = '';
+  }
+
   // Populate collection select
   const colSelect = document.getElementById('edit-collection');
-  colSelect.innerHTML = '<option value="">General (No collection)</option>';
+  colSelect.innerHTML = `<option value="">${escapeHtml(t('general_collection', state.currentLang))}</option>`;
   state.collections.forEach(col => {
     const opt = document.createElement('option');
     opt.value = col.id;
@@ -632,7 +816,7 @@ function setupImportModal() {
   confirmBtn.addEventListener('click', async () => {
     if (!fileContent) return;
     confirmBtn.disabled = true;
-    confirmBtn.textContent = 'Importing...';
+    confirmBtn.textContent = t('importing', state.currentLang);
 
     const mode = document.getElementById('import-mode-select').value;
 
@@ -641,12 +825,12 @@ function setupImportModal() {
       resultMsg.style.display = 'block';
       resultMsg.style.background = 'rgba(16, 185, 129, 0.15)';
       resultMsg.style.color = '#34D399';
-      resultMsg.textContent = `Success! Imported ${res.importedItems} items, added ${res.importedCollections} collections, skipped ${res.skippedDuplicates} duplicates.`;
+      resultMsg.textContent = `${t('import_success', state.currentLang)} (${res.importedItems} items, ${res.importedCollections} collections).`;
 
       setTimeout(async () => {
         closeModal();
         confirmBtn.disabled = false;
-        confirmBtn.textContent = 'Start Import';
+        confirmBtn.textContent = t('start_import', state.currentLang);
         await refreshData();
       }, 1800);
     } catch (err) {
@@ -655,7 +839,7 @@ function setupImportModal() {
       resultMsg.style.color = '#F43F5E';
       resultMsg.textContent = `Import failed: ${err.message}`;
       confirmBtn.disabled = false;
-      confirmBtn.textContent = 'Start Import';
+      confirmBtn.textContent = t('start_import', state.currentLang);
     }
   });
 }

@@ -1,9 +1,10 @@
 /**
  * Mindora Background Service Worker (Manifest V3)
- * Handles context menus, keyboard shortcuts, and inter-component messaging
+ * Handles context menus, keyboard shortcuts, translation requests, and inter-component messaging
  */
 
 import { saveItem, updateItem, findDuplicate } from '../lib/storage.js';
+import { translateText } from '../lib/translator.js';
 
 // Setup Context Menus upon extension install / update
 chrome.runtime.onInstalled.addListener(() => {
@@ -97,13 +98,18 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // Handle internal messages
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Direct save from in-page floating pill
   if (message.action === 'SAVE_SELECTION_DIRECT') {
     const payload = message.payload || {};
     saveItem({
       selectedText: payload.selectedText,
       pageTitle: payload.pageTitle || sender.tab?.title || 'Untitled',
       sourceUrl: payload.url || sender.tab?.url || '',
-      faviconUrl: payload.favicon || sender.tab?.favIconUrl || ''
+      faviconUrl: payload.favicon || sender.tab?.favIconUrl || '',
+      isTranslated: payload.isTranslated,
+      translatedText: payload.translatedText,
+      sourceLanguage: payload.sourceLanguage,
+      targetLanguage: payload.targetLanguage
     }).then(saveResult => {
       const isDuplicate = !!saveResult.duplicate;
       const itemId = isDuplicate ? saveResult.existingItem.id : saveResult.item.id;
@@ -114,12 +120,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Content / Excerpt Translation request
+  if (message.action === 'TRANSLATE_TEXT') {
+    translateText(message.text, message.targetLang || 'en', message.sourceLang || 'auto')
+      .then(res => sendResponse({ success: true, result: res }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  // Open Library tab
   if (message.action === 'OPEN_LIBRARY') {
     openLibraryTab();
     sendResponse({ success: true });
     return true;
   }
 
+  // Inline Note Update from Toast
   if (message.action === 'UPDATE_ITEM_NOTE') {
     updateItem(message.itemId, { userNote: message.note })
       .then(() => sendResponse({ success: true }))
